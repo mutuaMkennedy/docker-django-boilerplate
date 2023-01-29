@@ -1,0 +1,60 @@
+# Development environment docker compose file
+# Version of docker compose to use
+version: '3.9'
+
+# services we want to run
+services:
+  app:
+    # image name and a tag name
+    image: app_dev:homey
+    container_name: homey_dev_django_container
+    build: .
+    ports:
+      - "8080:8080"
+    links:
+      - postgres:postgres
+      - redis:redis
+    volumes:
+      # NOTE: Usefull in dev mode only.
+      # CONTD: Will allow us to make code changes and have them reflect in or container
+      # CONTD: Not required in prod as we won't be making changes to code there
+      - .:/app 
+    env_file:
+      # env. file containing variables to use within this service
+      - ./.env.dev
+    command: >
+      sh -c " python manage.py migrate &&
+              python manage.py runserver 0.0.0.0:8080
+            "
+    depends_on:
+      - postgres
+
+  postgres:
+    restart: always
+    # image name and a tag name
+    image: homey_dev:postgres
+    container_name: homey_dev_postgres_container
+    build: ./docker-services/postgres/
+    ports:
+      - "5432:5432"
+    volumes:
+      # persist db data beyond the life of the container
+      - pgdata:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_USER=${DB_USER}
+
+  redis:
+    # image name and a tag name
+    image: homey_dev:redis
+    build: ./docker-services/redis/
+    container_name: homey_dev_redis_container
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:
